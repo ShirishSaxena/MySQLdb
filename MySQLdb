@@ -1,0 +1,247 @@
+#!/bin/bash
+
+# MySQL Database Creation Wizard !
+# Author : Shirish Saxena
+# Version : 2.2v
+# Copyright to Shirish [ me@shirish.me ] @ 2015
+#
+
+
+# --------------------------------------------- { Main Function/Var's } --------------------------------------------- #
+
+######################################################################################################################
+w='\033[0m'
+r='\033[00;31m'
+g='\033[00;32m'
+y='\033[00;33m'
+b='\033[00;34m'
+p='\033[00;35m'
+c='\033[00;36m'
+lg='\033[00;37m'
+
+lr='\033[01;31m'
+lgreen='\033[01;32m'
+ly='\033[01;33m'
+lb='\033[01;34m'
+lp='\033[01;35m'
+dblue='\033[01;36m'
+
+S_Name="${0##*/}"
+Main_Dir=`pwd`
+
+##################################
+
+function f_Main()
+{
+clear
+echo ""
+echo -e "${w}Welcome to ${r}MySQL${c}Installer${lg}Wizard${w}"
+echo -e "Author     : ${g}Shirish${w} Saxena"
+echo -e "${w}Xfire  : mrshowoff15${w}"
+echo -e "Version : ${lb}1.4v${w}"
+}
+function f_System_Info()
+{
+System_Bit=`uname -m | sed 's/x86_//;s/i[3-6]86/32/'`
+System_Info=`lsb_release -sd 2>/dev/null || cat /etc/*release or lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om`
+echo ""
+echo -e "${r}Your System ${w}: ${lb}$System_Info ${lg}|| ${lgreen}$System_Bit${g} bit ${w}"
+}
+function f_root()
+{
+if [ `whoami` != "root" ]; then
+p_fail "Script should be run as ${r}root!${w}"
+echo ""
+exit
+fi
+}
+
+p_bye(){
+	echo -en "\r\033[K[\e[1;36m BYE \e[0;39m]\n"
+}
+p_fail(){
+    echo -en "\r\033[K[\e[0;31m FAIL \e[0;39m] $@"
+}
+
+p_ok(){
+    echo -en "\r\033[K[\e[0;32m  OK  \e[0;39m] $@"
+}
+p_info(){
+    echo -en "\r\033[K[\e[0;36m INFO \e[0;39m] $@"
+}
+p_beware(){
+	echo -en "\r\033[K[\e[${lr} Beware \e[0;39m] $@\n"
+	}
+p_warn(){
+	echo -en "\r\033[K[\e[1;33m WARN \e[0;39m] $@"
+	}
+p_dots(){
+    echo -en "\r\033[K[ .    ] $@"
+	sleep 0.2
+	echo -en "\r\033[K[ ..   ] $@"
+	sleep 0.2
+	echo -en "\r\033[K[ ...  ] $@"
+	sleep 0.2
+	echo -en "\r\033[K[ .... ] $@"
+	sleep 0.2
+	echo -en "\r\033[K[ .    ] $@"
+	sleep 0.2
+	echo -en "\r\033[K[ ..   ] $@"
+	sleep 0.2
+	echo -en "\r\033[K[ ...  ] $@"
+	sleep 0.2
+	echo -en "\r\033[K[ .... ] $@"
+	sleep 0.2
+	
+	# Total time : 1.6 s
+}
+
+function f_Check()
+{
+####################################
+	if hash mysql 2>/dev/null; then
+		echo -n ""
+	else
+		echo ""
+		p_dots "Installing MySQL"
+		p_dots "Installing MySQL"
+		echo ""
+		echo "You Will be Prompted to set MySQL Password"
+		sleep 5
+		if [ -f /etc/redhat-release ] ; then
+			yum install mysql-server -y
+		elif [ -f /etc/debian_version ] ; then
+			apt-get install mysql-server -y
+		fi
+		echo ""
+		clear
+		if hash mysql 2>/dev/null; then
+			p_ok "Installed : ${g}MySQL-Server${w}"
+		else
+			p_fail "MySQL couldn't be installed"
+			exit
+		fi
+	fi
+####################################
+}
+function Check_SQL()
+{
+UP=$(pgrep mysql | wc -l);
+if [ "$UP" -ne 1 ];
+then
+	if [ -f /etc/redhat-release ] ; then
+		/etc/init.d/mysqld start &>/dev/null
+	elif [ -f /etc/debian_version ] ; then
+		/etc/init.d/mysql start &>/dev/null
+	fi
+else
+   	if [ -f /etc/redhat-release ] ; then
+		/etc/init.d/mysqld restart &>/dev/null
+	elif [ -f /etc/debian_version ] ; then
+		/etc/init.d/mysql restart &>/dev/null
+	fi
+fi
+}
+function Main_Function_SQL()
+{
+Check_SQL
+MYSQL=`which mysql`
+# dbadminpass dbuser dbpass dbname
+echo ""
+p_warn "MySQL Admin Pass Must be Correct"
+sleep 2
+echo ""
+mainpass=$1
+sqluser=$2
+sqlpass=$3
+sqlname=$4
+
+p_dots "Creating Database"
+Q1="CREATE DATABASE IF NOT EXISTS $sqlname;"
+Q2="GRANT ALL ON $sqlname.* TO '$sqluser'@'localhost' IDENTIFIED BY '$sqlpass';"
+Q3="FLUSH PRIVILEGES;"
+SQL="${Q1}${Q2}${Q3}"
+$MYSQL -uroot -p$mainpass -e "$SQL" &>/dev/null
+RESULT=`mysql -u root -p$mainpass -e "SHOW DATABASES" | grep -Fo $4`
+if [ -z $RESULT ]; then
+	p_fail "SQL DB : ${r}Failed${w}"
+else
+	p_info "SQL DB : ${g}Created Successfully${w}"
+fi
+echo ""
+Log $1 $2 $3 $4
+}
+function pp()
+{
+echo "$@" >> $S_Name.txt
+}
+function Log()
+{
+RESULT=`mysql -u root -p$mainpass -e "SHOW DATABASES" | grep -Fo $4`
+System_Bit=`uname -m | sed 's/x86_//;s/i[3-6]86/32/'`
+System_Info=`lsb_release -sd 2>/dev/null || cat /etc/*release or lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om`
+if [ -f $S_Name.txt ] ; then
+	rm -f $S_Name.txt
+fi
+echo "Last Script run : `date +"%r"` || `date +"%A"` || `date +"%d-%B-%y"` " > $S_Name.txt
+pp ""
+
+if [ -z $RESULT ]; then
+	pp "SQL DB : ${r}Failed${w}"
+else
+	pp "SQL DB : ${g}Created Successfully${w}"
+fi
+pp ""
+pp "MySQL Username : $2"
+pp "MySQL Password : $3"
+pp "MySQL Name     : $4"
+pp ""
+pp "For B3 : mysql://$1:$2@localhost/$4"
+pp ""
+pp "Your System : $System_Info || $System_Bit bit"
+pp ""
+pp "Thanks for Using this Script"
+pp "If you have any problem related this script, Please email me @ me.shirish.me"
+pp ""
+}
+function dbexecute()
+{
+if hash mysql 2>/dev/null; then
+	MYSQL=`which mysql`
+	echo ""
+	read -p "MySQL Username 	  ? : " sqluser
+	read -p "MySQL Password	      ? : " sqlpass
+	read -p "MySQL Name     	  ? : " sqlname
+	read -p "File Name to Execute ? : " file
+	if [ -f $file ] ; then
+		$MYSQL -u $sqluser -p$sqlpass $sqlname < $file
+		echo ""
+		p_info "Executed : $file"
+	else
+		echo "File not found : $file >> `pwd`"
+		exit
+	fi
+else
+	p_fail "MySQL is not Installed"
+	exit
+fi
+}
+###################################################################################################################
+f_root
+f_Main
+f_System_Info
+f_Check
+
+
+if [ ! -z $1 ] && [ ! -z $2 ] && [ ! -z $3 ] && [ ! -z $4 ]; then
+	echo -e "Creating MySQL Database"
+	echo -e "Database logs : `pwd`/mysqldb.txt"
+	Main_Function_SQL $1 $2 $3 $4
+elif [ "$1" == "execute" ] || [ "$1" == "Execute" ] || [ "$1" == "dbexecute" ] || [ "$1" == "executedb" ] ; then
+	dbexecute
+else
+	echo -e "${r}Usage ${w}: $0 MySQL_Pass dbuser dbpass dbname"
+	echo -e "After database Creation.. if you want to Execute .sql file then"
+	echo -e "Do : $0 executedb"
+	echo ""
+fi
